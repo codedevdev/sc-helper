@@ -45,7 +45,7 @@ Search UX includes typeahead commodity/terminal filters, active filter chips, au
 
 ## Download
 
-**Windows:** download the latest `SC Helper_*_x64-setup.exe` from [GitHub Releases](https://github.com/codedevdev/sc-helper/releases).
+**Windows:** download the latest `SC Helper_*_x64-setup.exe` (or `SC.Helper_*_x64-setup.exe`) from [GitHub Releases](https://github.com/codedevdev/sc-helper/releases).
 
 > Requires Windows 10/11 with [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (pre-installed on Windows 11).
 
@@ -113,14 +113,20 @@ Current balance is calculated, not stored:
 
 ## Releases
 
-Push a version tag to trigger a Windows installer build:
+Download the Windows installer from **[GitHub Releases](https://github.com/codedevdev/sc-helper/releases)** — look for `SC Helper_*_x64-setup.exe`.
+
+> The **Tags** page only has source code archives (zip/tar.gz). The `.exe` installer is attached to **Releases**, not Tags.
+
+Push a version tag to build a new installer:
 
 ```powershell
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-GitHub Actions creates a draft release with the NSIS `.exe` installer. Publish the draft when ready.
+GitHub Actions builds the NSIS installer and publishes it to Releases automatically (~10–15 min). To re-run without a new tag: **Actions → Release → Run workflow**.
+
+See [docs/deployment.md](docs/deployment.md) for permissions, verification, and troubleshooting.
 
 ## Disclaimer
 
