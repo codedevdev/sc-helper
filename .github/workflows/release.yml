@@ -4,14 +4,23 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing git tag to release (e.g. v0.1.0)"
+        required: true
+        default: "v0.1.0"
+
+permissions:
+  contents: write
 
 jobs:
   release-windows:
     runs-on: windows-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -26,20 +35,30 @@ jobs:
 
       - run: npm ci
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
+        id: tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: SC Helper ${{ github.ref_name }}
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          releaseName: SC Helper ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           releaseBody: |
-            Windows installer for SC Helper ${{ github.ref_name }}.
+            Windows installer for SC Helper.
 
             Download `SC Helper_*_x64-setup.exe` below and run the installer.
-            Requires Windows 10/11 with WebView2.
+            Requires Windows 10/11 with [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/).
 
             See [README](https://github.com/codedevdev/sc-helper#download) for details.
-          releaseDraft: true
+          releaseCommitish: ${{ github.sha }}
+          releaseDraft: false
           prerelease: false
-          tauriScript: npm run tauri
+          uploadWorkflowArtifacts: true
           args: --bundles nsis
+
+      - name: Verify release outputs
+        if: always()
+        shell: bash
+        run: |
+          echo "releaseId=${{ steps.tauri.outputs.releaseId }}"
+          echo "releaseHtmlUrl=${{ steps.tauri.outputs.releaseHtmlUrl }}"
+          echo "artifactPaths=${{ steps.tauri.outputs.artifactPaths }}"
