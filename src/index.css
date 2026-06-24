@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-income: var(--income);
+  --color-expense: var(--expense);
+  --color-success: var(--success);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --font-sans: "Exo 2", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.12 0.02 250);
+  --foreground: oklch(0.93 0.02 220);
+  --card: oklch(0.16 0.025 250);
+  --card-foreground: oklch(0.93 0.02 220);
+  --popover: oklch(0.16 0.025 250);
+  --popover-foreground: oklch(0.93 0.02 220);
+  --primary: oklch(0.72 0.14 195);
+  --primary-foreground: oklch(0.14 0.03 250);
+  --secondary: oklch(0.22 0.03 250);
+  --secondary-foreground: oklch(0.9 0.02 220);
+  --muted: oklch(0.2 0.025 250);
+  --muted-foreground: oklch(0.65 0.04 220);
+  --accent: oklch(0.24 0.04 250);
+  --accent-foreground: oklch(0.92 0.06 195);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.28 0.04 250);
+  --input: oklch(0.28 0.04 250);
+  --ring: oklch(0.72 0.14 195);
+  --sidebar: oklch(0.1 0.025 250);
+  --sidebar-foreground: oklch(0.88 0.02 220);
+  --sidebar-primary: oklch(0.72 0.14 195);
+  --sidebar-primary-foreground: oklch(0.14 0.03 250);
+  --sidebar-accent: oklch(0.18 0.035 250);
+  --sidebar-accent-foreground: oklch(0.92 0.06 195);
+  --sidebar-border: oklch(0.24 0.04 250);
+  --sidebar-ring: oklch(0.72 0.14 195);
+  --success: oklch(0.72 0.15 155);
+  --income: oklch(0.72 0.15 155);
+  --expense: oklch(0.65 0.18 25);
+  --chart-income: #34d399;
+  --chart-expense: #fb7185;
+  --chart-net-positive: #5eead4;
+  --chart-net-negative: #fb7185;
+  --chart-adjustment: #a78bfa;
+  --chart-1: #5eead4;
+  --chart-2: #34d399;
+  --chart-3: #38bdf8;
+  --chart-4: #818cf8;
+  --chart-5: #a78bfa;
+}
+
+.dark {
+  --background: oklch(0.12 0.02 250);
+  --foreground: oklch(0.93 0.02 220);
+  --card: oklch(0.16 0.025 250);
+  --card-foreground: oklch(0.93 0.02 220);
+  --popover: oklch(0.16 0.025 250);
+  --popover-foreground: oklch(0.93 0.02 220);
+  --primary: oklch(0.72 0.14 195);
+  --primary-foreground: oklch(0.14 0.03 250);
+  --secondary: oklch(0.22 0.03 250);
+  --secondary-foreground: oklch(0.9 0.02 220);
+  --muted: oklch(0.2 0.025 250);
+  --muted-foreground: oklch(0.65 0.04 220);
+  --accent: oklch(0.24 0.04 250);
+  --accent-foreground: oklch(0.92 0.06 195);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.28 0.04 250);
+  --input: oklch(0.28 0.04 250);
+  --ring: oklch(0.72 0.14 195);
+  --sidebar: oklch(0.1 0.025 250);
+  --sidebar-foreground: oklch(0.88 0.02 220);
+  --sidebar-primary: oklch(0.72 0.14 195);
+  --sidebar-primary-foreground: oklch(0.14 0.03 250);
+  --sidebar-accent: oklch(0.18 0.035 250);
+  --sidebar-accent-foreground: oklch(0.92 0.06 195);
+  --sidebar-border: oklch(0.24 0.04 250);
+  --sidebar-ring: oklch(0.72 0.14 195);
+  --success: oklch(0.72 0.15 155);
+  --income: oklch(0.72 0.15 155);
+  --expense: oklch(0.65 0.18 25);
+  --chart-income: #34d399;
+  --chart-expense: #fb7185;
+  --chart-net-positive: #5eead4;
+  --chart-net-negative: #fb7185;
+  --chart-adjustment: #a78bfa;
+  --chart-1: #5eead4;
+  --chart-2: #34d399;
+  --chart-3: #38bdf8;
+  --chart-4: #818cf8;
+  --chart-5: #a78bfa;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.72 0.14 195 / 0.08), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 100%, oklch(0.55 0.1 280 / 0.05), transparent);
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer utilities {
+  .text-income {
+    color: var(--income);
+  }
+
+  .text-expense {
+    color: var(--expense);
+  }
+}
