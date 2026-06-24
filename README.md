@@ -45,7 +45,7 @@ Search UX includes typeahead commodity/terminal filters, active filter chips, au
 
 ## Download
 
-**Windows:** download the latest `SC Helper_*_x64-setup.exe` from [GitHub Releases](https://github.com/codedevdev/sc-helper/releases).
+**Windows:** download the latest `SC Helper_*_x64-setup.exe` (or `SC.Helper_*_x64-setup.exe`) from [GitHub Releases](https://github.com/codedevdev/sc-helper/releases).
 
 > Requires Windows 10/11 with [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (pre-installed on Windows 11).
 
