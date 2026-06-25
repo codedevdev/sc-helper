@@ -1,5 +1,16 @@
 import { useMemo } from "react";
 import { Minus, Plus } from "lucide-react";
+import { mergeLoopPlannerInput } from "@/features/trading-routes/default-loop-planner";
+import {
+  applyLoopPlannerPreset,
+  isStantonOnly,
+  resolveLoopProfileValue,
+  stantonOnlyPatch,
+  type LoopPlannerPresetId,
+} from "@/features/trading-routes/loop-planner-presets";
+import { buildLoopPlannerSummary } from "@/features/trading-routes/loop-planner-summary";
+import type { TradingShip } from "@/lib/trading-routes/ships";
+import type { LoopPlannerInput } from "@/types/trading-route";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,14 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import {
-  applyLoopPlannerPreset,
-  detectMatchingLoopPlannerPresetId,
-  type LoopPlannerPresetId,
-} from "@/features/trading-routes/loop-planner-presets";
-import type { LoopPlannerFilters, LoopPlannerInput } from "@/types/trading-route";
 import { CollapsibleSection } from "./CollapsibleSection";
-import { LoopPlannerPresetBar } from "./LoopPlannerPresetBar";
+import { LoopProfileSelect } from "./LoopProfileSelect";
 import { LoopSystemFilterPanel, type StarSystemOption } from "./LoopSystemFilterPanel";
 import { ShipSelect } from "./ShipSelect";
 
@@ -32,15 +37,15 @@ export interface TerminalOption {
 
 interface LoopFiltersPanelProps {
   planner: LoopPlannerInput;
-  filters: LoopPlannerFilters;
   shipName: string;
+  ships: TradingShip[];
+  shipsLoading?: boolean;
   terminals: TerminalOption[];
   systems: StarSystemOption[];
-  commodities: string[];
   stantonSystemId?: number;
   disabled?: boolean;
   onPlannerChange: (patch: Partial<LoopPlannerInput>) => void;
-  onFiltersChange: (patch: Partial<LoopPlannerFilters>) => void;
+  onPlannerReplace: (planner: LoopPlannerInput) => void;
   onShipChange: (name: string, scu: number) => void;
 }
 
@@ -121,23 +126,33 @@ function PlannerToggle({
 
 export function LoopFiltersPanel({
   planner,
-  filters,
   shipName,
+  ships,
+  shipsLoading,
   terminals,
   systems,
-  commodities,
   stantonSystemId,
   disabled,
   onPlannerChange,
-  onFiltersChange,
+  onPlannerReplace,
   onShipChange,
 }: LoopFiltersPanelProps) {
   const minLegs = planner.minLegs ?? LEG_MIN;
   const maxLegs = planner.maxLegs ?? LEG_MAX;
 
-  const activePresetId = useMemo(
-    () => detectMatchingLoopPlannerPresetId(planner, shipName, stantonSystemId),
-    [planner, shipName, stantonSystemId],
+  const profileValue = useMemo(
+    () => resolveLoopProfileValue(planner, shipName),
+    [planner, shipName],
+  );
+
+  const systemNames = useMemo(
+    () => new Map(systems.map((s) => [s.id, s.name])),
+    [systems],
+  );
+
+  const advancedSummary = useMemo(
+    () => buildLoopPlannerSummary(planner, { stantonSystemId, systemNames }),
+    [planner, stantonSystemId, systemNames],
   );
 
   const terminalOptions = useMemo(
@@ -147,6 +162,8 @@ export function LoopFiltersPanel({
         .map((t) => ({ value: String(t.id), label: t.label })),
     [terminals],
   );
+
+  const stantonOnly = isStantonOnly(planner, stantonSystemId);
 
   function handleMinLegsChange(next: number) {
     const clamped = clampLegs(next);
@@ -159,87 +176,31 @@ export function LoopFiltersPanel({
   }
 
   function handlePresetSelect(id: LoopPlannerPresetId) {
-    const applied = applyLoopPlannerPreset(
-      id,
-      { planner, shipName },
-      (partial) => ({ ...planner, ...partial }),
-      { stantonSystemId },
-    );
+    const applied = applyLoopPlannerPreset(id, { planner, shipName }, mergeLoopPlannerInput);
     onShipChange(applied.shipName, applied.planner.shipScu ?? applied.planner.cargoScu);
-    onPlannerChange(applied.planner);
+    onPlannerReplace(applied.planner);
   }
 
   return (
     <div className="space-y-6">
-      <LoopPlannerPresetBar
-        activePresetId={activePresetId}
+      <LoopProfileSelect
+        value={profileValue}
         disabled={disabled}
         onPresetSelect={handlePresetSelect}
       />
 
-      <LoopSystemFilterPanel
-        planner={planner}
-        systems={systems}
-        disabled={disabled}
-        onPlannerChange={onPlannerChange}
-      />
-
-      <div className="space-y-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Route</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <LegStepper
-            label="Min legs"
-            value={minLegs}
-            disabled={disabled}
-            onChange={handleMinLegsChange}
-          />
-          <LegStepper
-            label="Max legs"
-            value={maxLegs}
-            disabled={disabled}
-            onChange={handleMaxLegsChange}
-          />
-
-          <SearchableSelect
-            label="Start terminal"
-            value={planner.startTerminalId != null ? String(planner.startTerminalId) : "__any__"}
-            allOption={{ value: "__any__", label: "Any terminal" }}
-            options={terminalOptions}
-            placeholder="Search terminals…"
-            disabled={disabled}
-            onValueChange={(v) =>
-              onPlannerChange({
-                startTerminalId: v === "__any__" ? undefined : Number(v),
-              })
-            }
-          />
-
-          <div className="space-y-2">
-            <Label htmlFor="lp-max-time">Max total time (min)</Label>
-            <Input
-              id="lp-max-time"
-              type="number"
-              min={0}
-              disabled={disabled}
-              value={planner.maxTotalTimeMinutes ?? ""}
-              placeholder="Unlimited"
-              onChange={(e) => {
-                const raw = e.target.value;
-                onPlannerChange({
-                  maxTotalTimeMinutes: raw === "" ? undefined : Math.max(0, Number(raw) || 0),
-                });
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
       <div className="space-y-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Ship &amp; cargo
+          Essentials
         </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <ShipSelect shipName={shipName} onShipChange={onShipChange} disabled={disabled} />
+          <ShipSelect
+            shipName={shipName}
+            ships={ships}
+            loading={shipsLoading}
+            onShipChange={onShipChange}
+            disabled={disabled}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="lp-cargo">Cargo (SCU)</Label>
@@ -247,62 +208,38 @@ export function LoopFiltersPanel({
               id="lp-cargo"
               type="number"
               min={1}
+              max={planner.shipScu ?? undefined}
               disabled={disabled}
               value={planner.cargoScu}
               onChange={(e) =>
                 onPlannerChange({ cargoScu: Math.max(1, Number(e.target.value) || 1) })
               }
             />
+            {planner.shipScu ? (
+              <p className="text-xs text-muted-foreground">
+                Using ship capacity: {planner.shipScu} SCU
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Custom cargo — enter SCU manually</p>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lp-budget">Budget (aUEC)</Label>
-            <Input
-              id="lp-budget"
-              type="number"
-              min={0}
-              disabled={disabled}
-              value={planner.budgetAuec || ""}
-              placeholder="0 = unlimited"
-              onChange={(e) =>
-                onPlannerChange({ budgetAuec: Math.max(0, Number(e.target.value) || 0) })
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Crew</Label>
-            <Select
-              value={String(planner.crew)}
-              disabled={disabled}
-              onValueChange={(v) =>
-                onPlannerChange({ crew: Number(v) as LoopPlannerInput["crew"] })
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Solo</SelectItem>
-                <SelectItem value="2">2 players</SelectItem>
-                <SelectItem value="3">3 players</SelectItem>
-                <SelectItem value="4">4 players</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Options</p>
-        <div className="flex flex-wrap gap-x-6 gap-y-3">
-          <PlannerToggle
-            id="lp-return-start"
-            label="Return to start"
-            checked={planner.returnToStart ?? true}
+          <LegStepper
+            label="Min legs"
+            value={minLegs}
             disabled={disabled}
-            onChange={(checked) => onPlannerChange({ returnToStart: checked })}
+            onChange={handleMinLegsChange}
           />
+
+          <LegStepper
+            label="Max legs"
+            value={maxLegs}
+            disabled={disabled}
+            onChange={handleMaxLegsChange}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-x-6 gap-y-3">
           <PlannerToggle
             id="lp-same-system"
             label="Same system"
@@ -311,11 +248,11 @@ export function LoopFiltersPanel({
             onChange={(checked) => onPlannerChange({ sameSystemOnly: checked })}
           />
           <PlannerToggle
-            id="lp-mixed-commodities"
-            label="Mixed commodities"
-            checked={planner.allowMixedCommodities ?? true}
-            disabled={disabled}
-            onChange={(checked) => onPlannerChange({ allowMixedCommodities: checked })}
+            id="lp-stanton-only"
+            label="Stanton only"
+            checked={stantonOnly}
+            disabled={disabled || stantonSystemId == null}
+            onChange={(checked) => onPlannerChange(stantonOnlyPatch(checked, stantonSystemId))}
           />
           <PlannerToggle
             id="lp-exclude-illegal"
@@ -324,82 +261,109 @@ export function LoopFiltersPanel({
             disabled={disabled}
             onChange={(checked) => onPlannerChange({ excludeIllegal: checked })}
           />
-          <PlannerToggle
-            id="lp-cargo-center"
-            label="Require cargo center"
-            checked={planner.requireCargoCenter ?? false}
-            disabled={disabled}
-            onChange={(checked) => onPlannerChange({ requireCargoCenter: checked })}
-          />
         </div>
       </div>
 
-      <CollapsibleSection title="Result filters">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SearchableSelect
-            label="Commodity in loop"
-            value={filters.commodity || "__all__"}
-            allOption={{ value: "__all__", label: "Any commodity" }}
-            options={commodities.map((c) => ({ value: c, label: c }))}
-            placeholder="Search commodities…"
-            disabled={disabled}
-            onValueChange={(v) => onFiltersChange({ commodity: v === "__all__" ? "" : v })}
-          />
+      <CollapsibleSection title="Advanced search" summary={advancedSummary}>
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="lp-budget">Budget (aUEC)</Label>
+              <Input
+                id="lp-budget"
+                type="number"
+                min={0}
+                disabled={disabled}
+                value={planner.budgetAuec || ""}
+                placeholder="0 = unlimited"
+                onChange={(e) =>
+                  onPlannerChange({ budgetAuec: Math.max(0, Number(e.target.value) || 0) })
+                }
+              />
+            </div>
 
-          <SearchableSelect
-            label="System in loop"
-            value={filters.system || "__all__"}
-            allOption={{ value: "__all__", label: "Any system" }}
-            options={systems.map((s) => ({ value: s.name, label: s.name }))}
-            placeholder="Search systems…"
-            disabled={disabled}
-            onValueChange={(v) => onFiltersChange({ system: v === "__all__" ? "" : v })}
-          />
+            <div className="space-y-2">
+              <Label>Crew</Label>
+              <Select
+                value={String(planner.crew)}
+                disabled={disabled}
+                onValueChange={(v) =>
+                  onPlannerChange({ crew: Number(v) as LoopPlannerInput["crew"] })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Solo</SelectItem>
+                  <SelectItem value="2">2 players</SelectItem>
+                  <SelectItem value="3">3 players</SelectItem>
+                  <SelectItem value="4">4 players</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lpf-terminal">Terminal contains</Label>
-            <Input
-              id="lpf-terminal"
+            <SearchableSelect
+              label="Start terminal"
+              value={planner.startTerminalId != null ? String(planner.startTerminalId) : "__any__"}
+              allOption={{ value: "__any__", label: "Any terminal" }}
+              options={terminalOptions}
+              placeholder="Search terminals…"
               disabled={disabled}
-              value={filters.terminal ?? ""}
-              placeholder="e.g. Lorville"
-              onChange={(e) => onFiltersChange({ terminal: e.target.value })}
+              onValueChange={(v) =>
+                onPlannerChange({
+                  startTerminalId: v === "__any__" ? undefined : Number(v),
+                })
+              }
             />
+
+            <div className="space-y-2">
+              <Label htmlFor="lp-max-time">Max total time (search)</Label>
+              <Input
+                id="lp-max-time"
+                type="number"
+                min={0}
+                disabled={disabled}
+                value={planner.maxTotalTimeMinutes ?? ""}
+                placeholder="Unlimited"
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  onPlannerChange({
+                    maxTotalTimeMinutes: raw === "" ? undefined : Math.max(0, Number(raw) || 0),
+                  });
+                }}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lpf-min-profit">Min profit (aUEC)</Label>
-            <Input
-              id="lpf-min-profit"
-              type="number"
-              min={0}
-              disabled={disabled}
-              value={filters.minProfit ?? ""}
-              placeholder="Any"
-              onChange={(e) => {
-                const raw = e.target.value;
-                onFiltersChange({
-                  minProfit: raw === "" ? undefined : Math.max(0, Number(raw) || 0),
-                });
-              }}
-            />
-          </div>
+          <LoopSystemFilterPanel
+            planner={planner}
+            systems={systems}
+            disabled={disabled}
+            onPlannerChange={onPlannerChange}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="lpf-max-time">Max time (min)</Label>
-            <Input
-              id="lpf-max-time"
-              type="number"
-              min={0}
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
+            <PlannerToggle
+              id="lp-return-start"
+              label="Return to start"
+              checked={planner.returnToStart ?? true}
               disabled={disabled}
-              value={filters.maxTime ?? ""}
-              placeholder="Any"
-              onChange={(e) => {
-                const raw = e.target.value;
-                onFiltersChange({
-                  maxTime: raw === "" ? undefined : Math.max(0, Number(raw) || 0),
-                });
-              }}
+              onChange={(checked) => onPlannerChange({ returnToStart: checked })}
+            />
+            <PlannerToggle
+              id="lp-mixed-commodities"
+              label="Mixed commodities"
+              checked={planner.allowMixedCommodities ?? true}
+              disabled={disabled}
+              onChange={(checked) => onPlannerChange({ allowMixedCommodities: checked })}
+            />
+            <PlannerToggle
+              id="lp-cargo-center"
+              label="Require cargo center"
+              checked={planner.requireCargoCenter ?? false}
+              disabled={disabled}
+              onChange={(checked) => onPlannerChange({ requireCargoCenter: checked })}
             />
           </div>
         </div>

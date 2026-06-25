@@ -5,6 +5,7 @@ import {
   canExecuteLeg,
   createInitialState,
   estimateRepositionTime,
+  resolveCargoScu,
 } from "@/lib/trading-routes/loop-state-machine";
 import type { LoopPlannerInput, RouteLegOffer, RouteTimeEstimate } from "@/types/trading-route";
 
@@ -121,5 +122,12 @@ describe("loop-state-machine", () => {
     const time = estimateRepositionTime(from, to, {});
 
     expect(time.total).toBeGreaterThan(0);
+  });
+
+  it("resolveCargoScu uses min of cargo and ship capacity", () => {
+    expect(resolveCargoScu({ ...DEFAULT_PLANNER, cargoScu: 100, shipScu: 696 })).toBe(100);
+    expect(resolveCargoScu({ ...DEFAULT_PLANNER, cargoScu: 500, shipScu: 696 })).toBe(500);
+    expect(resolveCargoScu({ ...DEFAULT_PLANNER, cargoScu: 800, shipScu: 696 })).toBe(696);
+    expect(resolveCargoScu({ ...DEFAULT_PLANNER, cargoScu: 50 })).toBe(50);
   });
 });

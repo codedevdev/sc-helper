@@ -1,4 +1,14 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +31,12 @@ interface SearchableSelectProps {
   disabled?: boolean;
   className?: string;
   onValueChange: (value: string) => void;
+}
+
+interface DropdownPosition {
+  top: number;
+  left: number;
+  width: number;
 }
 
 function normalizeQuery(q: string): string {
@@ -61,10 +77,13 @@ export function SearchableSelect({
   const autoId = useId();
   const id = idProp ?? autoId;
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlightIndex, setHighlightIndex] = useState(0);
+  const [position, setPosition] = useState<DropdownPosition | null>(null);
 
   const selectedLabel = useMemo(() => {
     if (allOption && value === allOption.value) return allOption.label;
@@ -80,17 +99,43 @@ export function SearchableSelect({
     return base;
   }, [allOption, options, query]);
 
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    setPosition({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
   useEffect(() => {
     setHighlightIndex(0);
   }, [query, open]);
 
   useEffect(() => {
+    if (!open) {
+      setPosition(null);
+      return;
+    }
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, updatePosition]);
+
+  useEffect(() => {
     if (!open) return;
     function onPointerDown(e: MouseEvent) {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setOpen(false);
+      setQuery("");
     }
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
@@ -142,10 +187,68 @@ export function SearchableSelect({
     el?.scrollIntoView({ block: "nearest" });
   }, [highlightIndex, open]);
 
+  const dropdown =
+    open && position
+      ? createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-50 rounded-md border bg-popover text-popover-foreground shadow-md"
+            style={{
+              top: position.top,
+              left: position.left,
+              width: position.width,
+            }}
+          >
+            <div className="border-b border-border/60 p-2">
+              <Input
+                autoFocus
+                value={query}
+                placeholder={placeholder}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+            <ul
+              ref={listRef}
+              role="listbox"
+              className="max-h-60 overflow-y-auto p-1 [scrollbar-color:hsl(var(--muted-foreground)/0.4)_transparent] [scrollbar-width:thin]"
+            >
+              {filtered.length === 0 && (
+                <li className="px-2 py-2 text-sm text-muted-foreground">{emptyLabel}</li>
+              )}
+              {filtered.map((option, index) => {
+                const selected = option.value === value;
+                const q = normalizeQuery(query);
+                return (
+                  <li
+                    key={option.value}
+                    role="option"
+                    aria-selected={selected}
+                    className={cn(
+                      "flex cursor-default items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm",
+                      index === highlightIndex && "bg-accent text-accent-foreground",
+                      selected && index !== highlightIndex && "bg-muted/50",
+                    )}
+                    onMouseEnter={() => setHighlightIndex(index)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectOption(option)}
+                  >
+                    <span className="truncate">{highlightMatch(option.label, q)}</span>
+                    {selected && <Check className="size-4 shrink-0 text-primary" />}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div ref={containerRef} className={cn("relative space-y-2", className)}>
+    <div ref={containerRef} className={cn("space-y-2", className)}>
       {label && <Label htmlFor={id}>{label}</Label>}
       <button
+        ref={triggerRef}
         id={id}
         type="button"
         disabled={disabled}
@@ -163,47 +266,7 @@ export function SearchableSelect({
         <span className="truncate">{selectedLabel || placeholder}</span>
         <ChevronDown className={cn("size-4 shrink-0 opacity-50 transition-transform", open && "rotate-180")} />
       </button>
-
-      {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
-          <div className="border-b p-2">
-            <Input
-              autoFocus
-              value={query}
-              placeholder={placeholder}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
-          <ul ref={listRef} role="listbox" className="max-h-60 overflow-y-auto p-1">
-            {filtered.length === 0 && (
-              <li className="px-2 py-2 text-sm text-muted-foreground">{emptyLabel}</li>
-            )}
-            {filtered.map((option, index) => {
-              const selected = option.value === value;
-              const q = normalizeQuery(query);
-              return (
-                <li
-                  key={option.value}
-                  role="option"
-                  aria-selected={selected}
-                  className={cn(
-                    "flex cursor-default items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm",
-                    index === highlightIndex && "bg-accent text-accent-foreground",
-                    selected && index !== highlightIndex && "bg-muted/50",
-                  )}
-                  onMouseEnter={() => setHighlightIndex(index)}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => selectOption(option)}
-                >
-                  <span className="truncate">{highlightMatch(option.label, q)}</span>
-                  {selected && <Check className="size-4 shrink-0 text-primary" />}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 }

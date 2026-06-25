@@ -15,6 +15,7 @@ import { FormDialogBody } from "@/components/shared/FormDialogBody";
 import { SectionHeading } from "@/components/shared/SectionHeading";
 import { copyToClipboard } from "@/lib/copyToClipboard";
 import { formatAuec } from "@/lib/formatAuec";
+import { formatTradeLegCashFlow } from "@/lib/formatNetProfit";
 import { cn } from "@/lib/utils";
 import type { TradeLeg, TradeLoop } from "@/types/trading-route";
 import { buildLoopChecklistText, loopHopCount } from "./loop-checklist";
@@ -29,11 +30,6 @@ interface LoopDetailDialogProps {
   saving?: boolean;
   onLogAsIncome?: () => void;
   onStartSession?: () => void;
-}
-
-function formatSignedAuec(value: number): string {
-  const formatted = formatAuec(Math.abs(value));
-  return value >= 0 ? `+${formatted}` : `-${formatted}`;
 }
 
 function roiClassName(roi: number): string {
@@ -77,8 +73,13 @@ function StepRow({ leg, nextLeg }: StepRowProps) {
             {actionLabel}
           </span>{" "}
           {leg.scuUsed} SCU {leg.commodity} @ {leg.terminal.terminal}{" "}
-          <span className="tabular-nums text-muted-foreground">
-            ({formatSignedAuec(leg.costOrRevenue)} aUEC)
+          <span
+            className={cn(
+              "tabular-nums",
+              leg.action === "buy" ? "text-rose-400/90" : "text-emerald-400/90",
+            )}
+          >
+            ({formatTradeLegCashFlow(leg.action, leg.costOrRevenue)})
           </span>
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">{leg.terminal.location}</p>

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useEnRoutePlanner } from "@/hooks/useEnRoutePlanner";
+import { useTradingShips } from "@/hooks/useTradingShips";
 import { useUexData } from "@/hooks/useUexData";
 import { formatAuec } from "@/lib/formatAuec";
 import { cn } from "@/lib/utils";
@@ -77,16 +78,19 @@ export function EnRouteView({ pilotMode }: EnRouteViewProps) {
     isFromSnapshot,
     planner,
     filters,
+    shipName,
     results,
     allResults,
     updatePlanner,
     updateFilters,
+    updateShip,
     refresh,
     fetchedAt,
     searching,
     searchMs,
   } = useEnRoutePlanner();
 
+  const { ships, status: shipsStatus } = useTradingShips();
   const { status: uexStatus } = useUexData();
   const { data: marketData } = useUexData();
 
@@ -100,6 +104,7 @@ export function EnRouteView({ pilotMode }: EnRouteViewProps) {
 
   const isLoading = status === "loading";
   const displayed = pilotMode ? results.slice(0, 5) : results;
+  const shipsLoading = shipsStatus === "loading";
 
   const chips = useMemo(() => {
     const list = [];
@@ -177,77 +182,112 @@ export function EnRouteView({ pilotMode }: EnRouteViewProps) {
 
           <Card className="mb-6 border-border/80 bg-card/70 backdrop-blur-md">
             <CardContent className="space-y-6 pt-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <SearchableSelect
-                  label="Origin"
-                  value={planner.originTerminalId ? String(planner.originTerminalId) : ""}
-                  options={terminals}
-                  placeholder="Search origin…"
-                  disabled={isLoading}
-                  onValueChange={(v) => updatePlanner({ originTerminalId: Number(v) })}
-                />
-                <SearchableSelect
-                  label="Destination"
-                  value={planner.destinationTerminalId ? String(planner.destinationTerminalId) : ""}
-                  options={terminals}
-                  placeholder="Search destination…"
-                  disabled={isLoading}
-                  onValueChange={(v) => updatePlanner({ destinationTerminalId: Number(v) })}
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="er-stops">Max stops</Label>
-                  <Input
-                    id="er-stops"
-                    type="number"
-                    min={0}
-                    max={5}
-                    value={planner.maxStops ?? 3}
-                    onChange={(e) =>
-                      updatePlanner({ maxStops: Math.min(5, Math.max(0, Number(e.target.value) || 0)) })
-                    }
+              <div className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Route</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <SearchableSelect
+                    label="Origin"
+                    value={planner.originTerminalId ? String(planner.originTerminalId) : ""}
+                    options={terminals}
+                    placeholder="Search origin…"
+                    disabled={isLoading}
+                    onValueChange={(v) => updatePlanner({ originTerminalId: Number(v) })}
+                  />
+                  <SearchableSelect
+                    label="Destination"
+                    value={planner.destinationTerminalId ? String(planner.destinationTerminalId) : ""}
+                    options={terminals}
+                    placeholder="Search destination…"
+                    disabled={isLoading}
+                    onValueChange={(v) => updatePlanner({ destinationTerminalId: Number(v) })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="er-detour">Max detour %</Label>
-                  <Input
-                    id="er-detour"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={planner.maxDetourPercent ?? 25}
-                    onChange={(e) =>
-                      updatePlanner({
-                        maxDetourPercent: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
-                      })
-                    }
-                  />
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Constraints
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="er-stops">Max stops</Label>
+                    <Input
+                      id="er-stops"
+                      type="number"
+                      min={0}
+                      max={5}
+                      value={planner.maxStops ?? 3}
+                      onChange={(e) =>
+                        updatePlanner({ maxStops: Math.min(5, Math.max(0, Number(e.target.value) || 0)) })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="er-detour">Max detour %</Label>
+                    <Input
+                      id="er-detour"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={planner.maxDetourPercent ?? 25}
+                      onChange={(e) =>
+                        updatePlanner({
+                          maxDetourPercent: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
+                        })
+                      }
+                    />
+                  </div>
                 </div>
-                <ShipSelect
-                  shipName=""
-                  onShipChange={(_name, scu) => {
-                    if (scu > 0) updatePlanner({ cargoScu: scu, shipScu: scu });
-                  }}
-                  disabled={isLoading}
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="er-cargo">Cargo (SCU)</Label>
-                  <Input
-                    id="er-cargo"
-                    type="number"
-                    min={1}
-                    value={planner.cargoScu}
-                    onChange={(e) =>
-                      updatePlanner({ cargoScu: Math.max(1, Number(e.target.value) || 1) })
-                    }
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Ship &amp; cargo
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <ShipSelect
+                    shipName={shipName}
+                    ships={ships}
+                    loading={shipsLoading}
+                    onShipChange={updateShip}
+                    disabled={isLoading}
                   />
+                  <div className="space-y-2">
+                    <Label htmlFor="er-cargo">Cargo (SCU)</Label>
+                    <Input
+                      id="er-cargo"
+                      type="number"
+                      min={1}
+                      max={planner.shipScu ?? undefined}
+                      value={planner.cargoScu}
+                      onChange={(e) =>
+                        updatePlanner({ cargoScu: Math.max(1, Number(e.target.value) || 1) })
+                      }
+                    />
+                    {planner.shipScu ? (
+                      <p className="text-xs text-muted-foreground">
+                        Using ship capacity: {planner.shipScu} SCU
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Custom cargo — enter SCU manually</p>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2">
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/70 backdrop-blur-md">
+            <CardContent className="pt-6">
+              {searching && (
+                <p className="mb-4 text-xs text-muted-foreground">Searching en-route paths…</p>
+              )}
+              <div className="mb-4 flex flex-wrap items-end gap-4">
+                <div className="min-w-[10rem] flex-1 space-y-2 sm:max-w-xs">
                   <Label>Sort</Label>
                   <Select
                     value={filters.sort}
-                    onValueChange={(v) =>
-                      updateFilters({ sort: v as typeof filters.sort })
-                    }
+                    onValueChange={(v) => updateFilters({ sort: v as typeof filters.sort })}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue />
@@ -260,14 +300,6 @@ export function EnRouteView({ pilotMode }: EnRouteViewProps) {
                   </Select>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/80 bg-card/70 backdrop-blur-md">
-            <CardContent className="pt-6">
-              {searching && (
-                <p className="mb-4 text-xs text-muted-foreground">Searching en-route paths…</p>
-              )}
               <ResultsSearchBar
                 query={filters.query ?? ""}
                 filteredCount={displayed.length}

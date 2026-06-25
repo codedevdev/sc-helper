@@ -1,13 +1,9 @@
 import { formatAuec } from "@/lib/formatAuec";
+import { formatTradeLegCashFlow } from "@/lib/formatNetProfit";
 import type { TradeLoop } from "@/types/trading-route";
 
 function hopCount(loop: TradeLoop): number {
   return loop.legs.filter((leg) => leg.action === "buy").length;
-}
-
-function formatSignedAuec(value: number): string {
-  const formatted = formatAuec(Math.abs(value));
-  return value >= 0 ? `+${formatted}` : `-${formatted}`;
 }
 
 export function buildLoopChecklistText(loop: TradeLoop): string {
@@ -22,9 +18,9 @@ export function buildLoopChecklistText(loop: TradeLoop): string {
   for (let i = 0; i < loop.legs.length; i++) {
     const leg = loop.legs[i];
     const action = leg.action.toUpperCase();
-    const sign = formatSignedAuec(leg.costOrRevenue);
+    const cashFlow = formatTradeLegCashFlow(leg.action, leg.costOrRevenue);
     lines.push(
-      `${leg.step}. ${action} ${leg.scuUsed} SCU ${leg.commodity} @ ${leg.terminal.terminal} (${sign} aUEC)`,
+      `${leg.step}. ${action} ${leg.scuUsed} SCU ${leg.commodity} @ ${leg.terminal.terminal} (${cashFlow})`,
     );
     const nextLeg = loop.legs[i + 1];
     if (nextLeg && nextLeg.travelFromPrev.total > 0) {

@@ -14,8 +14,12 @@ export interface LoopState {
   totalTimeMinutes: number;
 }
 
-function resolveCargoScu(planner: LoopPlannerInput): number {
-  return planner.shipScu != null && planner.shipScu > 0 ? planner.shipScu : planner.cargoScu;
+export function resolveCargoScu(planner: LoopPlannerInput): number {
+  const cargo = planner.cargoScu;
+  if (planner.shipScu != null && planner.shipScu > 0) {
+    return Math.min(cargo, planner.shipScu);
+  }
+  return cargo;
 }
 
 function resolveScuUsed(
