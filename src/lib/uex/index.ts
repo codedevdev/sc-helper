@@ -34,9 +34,11 @@ export {
 export {
   fetchCommodities,
   fetchCommoditiesPricesAll,
+  fetchCargoVehiclesForShips,
   fetchMarketDataBundle,
   fetchOrbitDistancesForSystems,
   fetchTerminals,
+  fetchVehicles,
 } from "@/lib/uex/endpoints";
 export {
   estimateTime,

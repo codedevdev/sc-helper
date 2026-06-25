@@ -19,6 +19,7 @@ export const DEFAULT_EN_ROUTE_FILTERS: EnRouteFilters = {
 export interface PersistedEnRouteState {
   planner?: Partial<EnRoutePlannerInput>;
   filters?: Partial<EnRouteFilters>;
+  shipName?: string;
 }
 
 function settingsDefaultsToPersisted(
@@ -26,6 +27,7 @@ function settingsDefaultsToPersisted(
 ): PersistedEnRouteState {
   if (!settingsDefaults) return {};
   const partial: PersistedEnRouteState = {};
+  if (settingsDefaults.shipName) partial.shipName = settingsDefaults.shipName;
   if (
     settingsDefaults.cargoScu != null ||
     settingsDefaults.budgetAuec != null ||
@@ -58,6 +60,7 @@ export function loadPersistedEnRouteState(
   return {
     planner: { ...baseline.planner, ...stored.planner },
     filters: { ...stored.filters },
+    shipName: stored.shipName ?? baseline.shipName,
   };
 }
 

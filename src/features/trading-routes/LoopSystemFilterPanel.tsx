@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { systemFilterSummary } from "@/lib/trading-routes/loop-system-filter";
 import type { LoopPlannerInput } from "@/types/trading-route";
@@ -65,8 +64,7 @@ export function LoopSystemFilterPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Label className="text-sm font-medium">Star systems</Label>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <span className="text-xs text-muted-foreground">{summary}</span>
       </div>
 
@@ -94,32 +92,29 @@ export function LoopSystemFilterPanel({
         ))}
       </div>
 
-      <div
-        className={cn(
-          "flex flex-wrap gap-2",
-          mode === "all" && "pointer-events-none opacity-50",
-        )}
-      >
-        {sortedSystems.map((system) => {
-          const selected = activeIds.has(system.id);
-          return (
-            <Button
-              key={system.id}
-              type="button"
-              size="sm"
-              variant={selected ? "default" : "outline"}
-              disabled={disabled || mode === "all"}
-              className={cn("h-8", !selected && "text-muted-foreground")}
-              onClick={() => toggleSystem(system.id)}
-            >
-              {system.name}
-            </Button>
-          );
-        })}
-        {sortedSystems.length === 0 && (
-          <span className="text-xs text-muted-foreground">No systems in market data</span>
-        )}
-      </div>
+      {mode !== "all" && (
+        <div className="flex flex-wrap gap-2">
+          {sortedSystems.map((system) => {
+            const selected = activeIds.has(system.id);
+            return (
+              <Button
+                key={system.id}
+                type="button"
+                size="sm"
+                variant={selected ? "default" : "outline"}
+                disabled={disabled}
+                className={cn("h-8", !selected && "text-muted-foreground")}
+                onClick={() => toggleSystem(system.id)}
+              >
+                {system.name}
+              </Button>
+            );
+          })}
+          {sortedSystems.length === 0 && (
+            <span className="text-xs text-muted-foreground">No systems in market data</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

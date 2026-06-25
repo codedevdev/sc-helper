@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Clock, Coins, RefreshCw, TrendingUp } from "lucide-react";
 import { StatCard } from "@/components/shared/StatCard";
@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLoopPlanner } from "@/hooks/useLoopPlanner";
 import { useSavedLoops } from "@/hooks/useSavedLoops";
+import { useTradingShips } from "@/hooks/useTradingShips";
 import { useUexData } from "@/hooks/useUexData";
-import { applyLoopPlannerPreset } from "@/features/trading-routes/loop-planner-presets";
-import { TRADING_SHIPS } from "@/lib/trading-routes/ships";
+import { applyQuickSearchPatch } from "@/features/trading-routes/loop-planner-presets";
 import { formatAuec } from "@/lib/formatAuec";
 import type { SavedTradeLoop, TradeLoop } from "@/types/trading-route";
 import { ActiveFilterChips } from "./ActiveFilterChips";
 import { LoopDetailDialog } from "./LoopDetailDialog";
 import { LoopFiltersPanel } from "./LoopFiltersPanel";
+import { LoopResultFiltersPanel } from "./LoopResultFiltersPanel";
 import { LoopResultsCards } from "./LoopResultsCards";
 import { LoopSortBar } from "./LoopSortBar";
 import { SavedLoopsPanel } from "./SavedLoopsPanel";
@@ -23,12 +24,6 @@ import { ResultsSearchBar } from "./ResultsSearchBar";
 import { SearchDiagnostics } from "./SearchDiagnostics";
 import { TradingRoutesSkeleton } from "./TradingRoutesSkeleton";
 import { buildLoopFilterChips } from "./route-filter-chips";
-
-function shipNameFromScu(scu: number | undefined): string {
-  if (!scu) return "";
-  const ship = TRADING_SHIPS.find((s) => s.scu === scu);
-  return ship?.name ?? "";
-}
 
 interface LoopPlannerViewProps {
   pilotMode?: boolean;
@@ -48,11 +43,14 @@ export function LoopPlannerView({
     isFromSnapshot,
     planner,
     filters,
+    shipName,
     loops,
     allLoops,
     stats,
     updatePlanner,
+    replacePlanner,
     updateFilters,
+    updateShip,
     refresh,
     fetchedAt,
     searching,
@@ -61,22 +59,16 @@ export function LoopPlannerView({
   } = useLoopPlanner();
 
   const { savedLoops, saveLoop, renameLoop, deleteLoop } = useSavedLoops();
+  const { ships, status: shipsStatus } = useTradingShips();
 
   const { status: uexStatus } = useUexData();
 
-  const [shipName, setShipName] = useState(() => shipNameFromScu(planner.shipScu));
   const [selectedLoop, setSelectedLoop] = useState<TradeLoop | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedSavedLoop, setSelectedSavedLoop] = useState<TradeLoop | null>(null);
   const [savedDetailOpen, setSavedDetailOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!shipName && planner.shipScu) {
-      setShipName(shipNameFromScu(planner.shipScu));
-    }
-  }, [planner.shipScu, shipName]);
 
   const { data: marketData } = useUexData();
   const terminals = useMemo(
@@ -125,19 +117,16 @@ export function LoopPlannerView({
   );
 
   const loopFilterChips = useMemo(
-    () => buildLoopFilterChips(filters, updateFilters),
-    [filters, updateFilters],
+    () => buildLoopFilterChips(filters, updateFilters, { shipName, cargoScu: planner.cargoScu }),
+    [filters, updateFilters, shipName, planner.cargoScu],
   );
 
   const isLoading = status === "loading";
   const isSearching = searching && !isLoading;
+  const shipsLoading = shipsStatus === "loading";
 
   function handleShipChange(name: string, scu: number) {
-    setShipName(name);
-    updatePlanner({
-      shipScu: scu || undefined,
-      cargoScu: scu > 0 ? Math.min(planner.cargoScu, scu) : planner.cargoScu,
-    });
+    updateShip(name, scu);
   }
 
   function handleLoopSelect(loop: TradeLoop) {
@@ -175,14 +164,7 @@ export function LoopPlannerView({
   }
 
   function applyQuickSearchPreset() {
-    const applied = applyLoopPlannerPreset(
-      "quick-search",
-      { planner, shipName },
-      (partial) => ({ ...planner, ...partial }),
-      { stantonSystemId },
-    );
-    handleShipChange(applied.shipName, applied.planner.shipScu ?? applied.planner.cargoScu);
-    updatePlanner(applied.planner);
+    updatePlanner(applyQuickSearchPatch(planner));
   }
 
   return (
@@ -312,33 +294,17 @@ export function LoopPlannerView({
               <CardContent className="pt-6">
                 <LoopFiltersPanel
                   planner={planner}
-                  filters={filters}
                   shipName={shipName}
+                  ships={ships}
+                  shipsLoading={shipsLoading}
                   terminals={terminals}
                   systems={systems}
-                  commodities={commodities}
                   stantonSystemId={stantonSystemId}
                   disabled={isLoading}
                   onPlannerChange={updatePlanner}
-                  onFiltersChange={updateFilters}
+                  onPlannerReplace={replacePlanner}
                   onShipChange={handleShipChange}
                 />
-                <div className="mt-4">
-                  <ActiveFilterChips
-                    chips={loopFilterChips.chips}
-                    onRemove={loopFilterChips.remove}
-                    onClearAll={() =>
-                      updateFilters({
-                        query: "",
-                        commodity: "",
-                        system: "",
-                        terminal: "",
-                        minProfit: undefined,
-                        maxTime: undefined,
-                      })
-                    }
-                  />
-                </div>
               </CardContent>
             </Card>
           )}
@@ -346,6 +312,29 @@ export function LoopPlannerView({
           <Card className="border-border/80 bg-card/70 backdrop-blur-md">
             <CardContent className="pt-6">
               <LoopSortBar sort={filters.sort} onSortChange={(sort) => updateFilters({ sort })} />
+              <LoopResultFiltersPanel
+                filters={filters}
+                systems={systems}
+                commodities={commodities}
+                disabled={isLoading}
+                onFiltersChange={updateFilters}
+              />
+              <div className="mb-4">
+                <ActiveFilterChips
+                  chips={loopFilterChips.chips}
+                  onRemove={loopFilterChips.remove}
+                  onClearAll={() =>
+                    updateFilters({
+                      query: "",
+                      commodity: "",
+                      system: "",
+                      terminal: "",
+                      minProfit: undefined,
+                      maxTime: undefined,
+                    })
+                  }
+                />
+              </div>
               <ResultsSearchBar
                 query={filters.query ?? ""}
                 filteredCount={displayedLoops.length}

@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSettings } from "@/hooks/useSettings";
+import { useTradingShips } from "@/hooks/useTradingShips";
 import { useUexData } from "@/hooks/useUexData";
 import {
   clearUexCache,
@@ -71,6 +72,8 @@ export function SettingsPage() {
     saveTradingDefaults,
   } = useSettings();
   const { refetch: refetchUex, status: uexStatus } = useUexData();
+  const { ships, status: shipsStatus } = useTradingShips();
+  const shipsLoading = shipsStatus === "loading";
 
   const [inputValue, setInputValue] = useState("");
   const [ttlInput, setTtlInput] = useState(String(DEFAULT_UEX_CACHE_TTL_MINUTES));
@@ -532,7 +535,12 @@ export function SettingsPage() {
             <>
               <ShipSelect
                 shipName={defaultShip}
-                onShipChange={(name) => setDefaultShip(name)}
+                ships={ships}
+                loading={shipsLoading}
+                onShipChange={(name, scu) => {
+                  setDefaultShip(name);
+                  if (scu > 0) setDefaultCargo(String(scu));
+                }}
               />
 
               <div className="grid gap-4 sm:grid-cols-2">

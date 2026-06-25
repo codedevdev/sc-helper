@@ -85,8 +85,15 @@ export function buildRouteFilterChips(
 export function buildLoopFilterChips(
   filters: LoopPlannerFilters,
   onPatch: (patch: Partial<LoopPlannerFilters>) => void,
+  plannerContext?: { shipName?: string; cargoScu?: number },
 ): { chips: ActiveFilterChip[]; remove: (id: string) => void } {
   const chips: ActiveFilterChip[] = [];
+
+  if (plannerContext?.shipName?.trim()) {
+    chips.push({ id: "ship", label: plannerContext.shipName });
+  } else if (plannerContext?.cargoScu != null && plannerContext.cargoScu !== 46) {
+    chips.push({ id: "cargo", label: `${plannerContext.cargoScu} SCU` });
+  }
 
   if (filters.query?.trim()) chips.push({ id: "query", label: `“${filters.query.trim()}”` });
   if (filters.commodity?.trim()) chips.push({ id: "commodity", label: filters.commodity });
@@ -120,6 +127,9 @@ export function buildLoopFilterChips(
       case "maxTime":
         patch.maxTime = undefined;
         break;
+      case "ship":
+      case "cargo":
+        return;
       default:
         return;
     }

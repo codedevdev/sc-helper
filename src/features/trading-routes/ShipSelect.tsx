@@ -1,60 +1,53 @@
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useMemo } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   getQuantumSpeedClassLabel,
-  TRADING_SHIPS,
+  type TradingShip,
 } from "@/lib/trading-routes/ships";
+
+const CUSTOM_CARGO_VALUE = "__none__";
 
 interface ShipSelectProps {
   shipName: string;
+  ships: TradingShip[];
+  loading?: boolean;
   onShipChange: (name: string, scu: number) => void;
   disabled?: boolean;
 }
 
-export function ShipSelect({ shipName, onShipChange, disabled }: ShipSelectProps) {
-  const sortedShips = useMemo(
-    () => [...TRADING_SHIPS].sort((a, b) => a.scu - b.scu),
-    [],
+export function ShipSelect({ shipName, ships, loading, onShipChange, disabled }: ShipSelectProps) {
+  const options = useMemo(
+    () =>
+      [...ships]
+        .sort((a, b) => a.scu - b.scu || a.name.localeCompare(b.name))
+        .map((s) => ({
+          value: s.name,
+          label: `${s.name} (${s.scu} SCU) · ${getQuantumSpeedClassLabel(s.quantumSpeedClass)}`,
+          keywords: `${s.scu} ${getQuantumSpeedClassLabel(s.quantumSpeedClass)}`,
+        })),
+    [ships],
   );
+
+  const value = shipName || CUSTOM_CARGO_VALUE;
+  const placeholder = loading ? "Loading ships…" : "Search ship…";
+
   return (
-    <div className="space-y-2">
-      <Label>Ship</Label>
-      <Select
-        value={shipName || "__none__"}
-        disabled={disabled}
-        onValueChange={(v) => {
-          if (v === "__none__") {
-            onShipChange("", 0);
-            return;
-          }
-          const ship = sortedShips.find((s) => s.name === v);
-          if (ship) onShipChange(ship.name, ship.scu);
-        }}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Choose ship" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__none__">Custom cargo</SelectItem>
-          {sortedShips.map((s) => (
-            <SelectItem key={s.name} value={s.name}>
-              <span>
-                {s.name} ({s.scu} SCU)
-                <span className="ml-1.5 text-muted-foreground">
-                  · {getQuantumSpeedClassLabel(s.quantumSpeedClass)}
-                </span>
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <SearchableSelect
+      label="Ship"
+      value={value}
+      options={options}
+      placeholder={placeholder}
+      emptyLabel={loading ? "Loading ships…" : "No ships found"}
+      allOption={{ value: CUSTOM_CARGO_VALUE, label: "Custom cargo" }}
+      disabled={disabled || loading}
+      onValueChange={(v) => {
+        if (v === CUSTOM_CARGO_VALUE) {
+          onShipChange("", 0);
+          return;
+        }
+        const ship = ships.find((s) => s.name === v);
+        if (ship) onShipChange(ship.name, ship.scu);
+      }}
+    />
   );
 }

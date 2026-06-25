@@ -9,6 +9,11 @@ export function formatSignedAuec(amount: number): string {
   return `${formatted} aUEC`;
 }
 
+export function formatTradeLegCashFlow(action: "buy" | "sell", amount: number): string {
+  const signed = action === "buy" ? -Math.abs(amount) : Math.abs(amount);
+  return formatSignedAuec(signed);
+}
+
 export function netProfitClassName(netProfit: number): string {
   if (netProfit > 0) return "text-emerald-400 font-medium";
   if (netProfit < 0) return "text-rose-400 font-medium";

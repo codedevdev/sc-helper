@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import type { TradingShip } from "@/lib/trading-routes/ships";
 import type { TradingRouteFilters, TradingRoutePlannerInput } from "@/types/trading-route";
 import { FilterPresetBar } from "./FilterPresetBar";
 import { MarketFiltersSection } from "./MarketFiltersSection";
@@ -18,6 +19,8 @@ interface RouteFiltersPanelProps {
   planner: TradingRoutePlannerInput;
   filters: TradingRouteFilters;
   shipName: string;
+  ships: TradingShip[];
+  shipsLoading?: boolean;
   activePresetId: FilterPresetId | null;
   systems: string[];
   commodities: string[];
@@ -32,6 +35,8 @@ export function RouteFiltersPanel({
   planner,
   filters,
   shipName,
+  ships,
+  shipsLoading,
   activePresetId,
   systems,
   commodities,
@@ -48,7 +53,13 @@ export function RouteFiltersPanel({
       <div className="space-y-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quick</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <ShipSelect shipName={shipName} onShipChange={onShipChange} disabled={disabled} />
+          <ShipSelect
+            shipName={shipName}
+            ships={ships}
+            loading={shipsLoading}
+            onShipChange={onShipChange}
+            disabled={disabled}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="tr-cargo">Cargo (SCU)</Label>

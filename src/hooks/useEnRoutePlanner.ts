@@ -54,6 +54,7 @@ export function useEnRoutePlanner() {
   const [filters, setFilters] = useState<EnRouteFilters>(() =>
     mergeEnRouteFilters(persisted.filters),
   );
+  const [shipName, setShipName] = useState(persisted.shipName ?? "");
 
   const debouncedPlanner = useDebouncedValue(planner, 300);
   const debouncedFilters = useDebouncedValue(filters, 300);
@@ -64,11 +65,12 @@ export function useEnRoutePlanner() {
     const merged = loadPersistedEnRouteState(settings.tradingDefaults);
     setPlanner(mergeEnRoutePlanner(merged.planner));
     setFilters(mergeEnRouteFilters(merged.filters));
+    setShipName(merged.shipName ?? "");
   }, [settings]);
 
   useEffect(() => {
-    schedulePersistedEnRouteState({ planner, filters });
-  }, [planner, filters]);
+    schedulePersistedEnRouteState({ planner, filters, shipName: shipName || undefined });
+  }, [planner, filters, shipName]);
 
   useEffect(() => {
     if (!marketData) {
@@ -166,6 +168,17 @@ export function useEnRoutePlanner() {
     setFilters((prev) => mergeEnRouteFilters({ ...prev, ...patch }));
   }, []);
 
+  const updateShip = useCallback((name: string, scu: number) => {
+    setShipName(name);
+    if (scu > 0) {
+      setPlanner((prev) =>
+        mergeEnRoutePlanner({ ...prev, cargoScu: scu, shipScu: scu }),
+      );
+    } else {
+      setPlanner((prev) => mergeEnRoutePlanner({ ...prev, shipScu: undefined }));
+    }
+  }, []);
+
   const isLoading =
     (uexStatus === "loading" || uexStatus === "idle") && !marketData
       ? true
@@ -178,10 +191,12 @@ export function useEnRoutePlanner() {
     isFromSnapshot,
     planner,
     filters,
+    shipName,
     results,
     allResults,
     updatePlanner,
     updateFilters,
+    updateShip,
     refresh,
     fetchedAt: marketData?.fetchedAt ?? null,
     searching,

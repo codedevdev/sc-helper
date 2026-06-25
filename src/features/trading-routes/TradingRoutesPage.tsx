@@ -13,6 +13,7 @@ import {
 } from "@/features/transactions/TransactionFormDialog";
 import { useFarmingSessions } from "@/hooks/useFarmingSessions";
 import { useTradingRoutes } from "@/hooks/useTradingRoutes";
+import { useTradingShips } from "@/hooks/useTradingShips";
 import { useTransactions } from "@/hooks/useTransactions";
 import { createSessionTransaction } from "@/lib/createSessionTransaction";
 import { formatAuec } from "@/lib/formatAuec";
@@ -91,6 +92,9 @@ export function TradingRoutesPage() {
     sellAlternatives,
     logProfitBasis,
   } = useTradingRoutes();
+
+  const { ships, status: shipsStatus } = useTradingShips();
+  const shipsLoading = shipsStatus === "loading";
 
   const { status: uexStatus } = useUexData();
 
@@ -289,6 +293,8 @@ export function TradingRoutesPage() {
                       planner={planner}
                       filters={filters}
                       shipName={shipName}
+                      ships={ships}
+                      shipsLoading={shipsLoading}
                       activePresetId={activePresetId}
                       systems={filterOptions.systems}
                       commodities={filterOptions.commodities}

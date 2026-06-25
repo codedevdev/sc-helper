@@ -18,14 +18,12 @@ import {
   mergeOrbitDistances,
   setCachedOrbitDistances,
 } from "@/lib/uex/cache";
-import { fetchCargoVehiclesForShips } from "@/lib/uex/endpoints";
 import { collectSystemIdsFromCandidates, fetchOrbitDistances } from "@/lib/uex/orbit-distances";
 import {
   applyFilterPreset,
   detectMatchingPresetId,
   type FilterPresetId,
 } from "@/lib/trading-routes/filter-presets";
-import { fetchCargoShipsFromUex } from "@/lib/trading-routes/ships";
 import {
   buildRouteSnapshotFromMarket,
   scoreRouteCandidates,
@@ -128,7 +126,6 @@ export function useTradingRoutes() {
   }, [planner, filters, shipName, presetId, logProfitBasis]);
 
   useEffect(() => {
-    void fetchCargoShipsFromUex(fetchCargoVehiclesForShips);
     return () => terminateTradingRoutesWorker();
   }, []);
 

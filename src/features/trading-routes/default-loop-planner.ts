@@ -23,6 +23,7 @@ export const DEFAULT_LOOP_PLANNER_FILTERS: LoopPlannerFilters = {
 export interface PersistedLoopPlannerState {
   planner?: Partial<LoopPlannerInput>;
   filters?: Partial<LoopPlannerFilters>;
+  shipName?: string;
 }
 
 function settingsDefaultsToPersisted(
@@ -30,6 +31,7 @@ function settingsDefaultsToPersisted(
 ): PersistedLoopPlannerState {
   if (!settingsDefaults) return {};
   const partial: PersistedLoopPlannerState = {};
+  if (settingsDefaults.shipName) partial.shipName = settingsDefaults.shipName;
   if (
     settingsDefaults.cargoScu != null ||
     settingsDefaults.budgetAuec != null ||
@@ -62,6 +64,7 @@ export function loadPersistedLoopPlannerState(
   return {
     planner: { ...baseline.planner, ...stored.planner },
     filters: { ...stored.filters },
+    shipName: stored.shipName ?? baseline.shipName,
   };
 }
 

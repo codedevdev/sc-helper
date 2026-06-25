@@ -35,7 +35,10 @@ export const TRADING_SHIPS: TradingShip[] = [
   { name: "Mercury Star Runner", scu: 114, quantumSpeedClass: "fast", uexSlug: "mercury-star-runner" },
 ];
 
-const SHIPS_BY_NAME = new Map(TRADING_SHIPS.map((s) => [s.name, s]));
+const STATIC_BY_SLUG = new Map(
+  TRADING_SHIPS.map((s) => [s.uexSlug ?? s.name.toLowerCase().replace(/\s+/g, "-"), s]),
+);
+const STATIC_BY_NAME = new Map(TRADING_SHIPS.map((s) => [s.name.toLowerCase(), s]));
 
 const QUANTUM_SPEED_CLASS_LABELS: Record<QuantumSpeedClass, string> = {
   starter: "Starter",
@@ -44,8 +47,61 @@ const QUANTUM_SPEED_CLASS_LABELS: Record<QuantumSpeedClass, string> = {
   hauler: "Hauler",
 };
 
+export function inferQuantumSpeedClass(name: string, scu: number): QuantumSpeedClass {
+  const lower = name.toLowerCase();
+  if (/mercury|hull\s*a\b/.test(lower)) return "fast";
+  if (/hull|hercules|caterpillar|\braft\b|c2\b|m2\b|taurus|starlifter|galaxy|merchantman|nomad/i.test(lower)) {
+    if (/hull\s*a\b|mercury/.test(lower)) return "fast";
+    if (/hull|hercules|caterpillar|taurus|starlifter|galaxy|merchantman|c2|m2/.test(lower)) return "hauler";
+  }
+  if (scu <= 24) return "starter";
+  return "standard";
+}
+
+function matchStaticShip(name: string, slug?: string): TradingShip | undefined {
+  if (slug) {
+    const bySlug = STATIC_BY_SLUG.get(slug);
+    if (bySlug) return bySlug;
+  }
+  return STATIC_BY_NAME.get(name.toLowerCase());
+}
+
+export function buildFullShipListFromUex(
+  vehicles: { name: string; slug?: string; scu: number }[],
+): TradingShip[] {
+  const byKey = new Map<string, TradingShip>();
+
+  for (const v of vehicles) {
+    const scu = Math.round(v.scu);
+    if (scu <= 0) continue;
+    const key = (v.slug ?? v.name.toLowerCase().replace(/\s+/g, "-")).toLowerCase();
+    if (byKey.has(key)) continue;
+
+    const staticMatch = matchStaticShip(v.name, v.slug);
+    if (staticMatch) {
+      byKey.set(key, {
+        ...staticMatch,
+        name: v.name,
+        scu,
+        uexSlug: v.slug ?? staticMatch.uexSlug,
+      });
+    } else {
+      byKey.set(key, {
+        name: v.name,
+        scu,
+        quantumSpeedClass: inferQuantumSpeedClass(v.name, scu),
+        uexSlug: v.slug,
+      });
+    }
+  }
+
+  const ships = [...byKey.values()].sort((a, b) => a.scu - b.scu || a.name.localeCompare(b.name));
+  return ships.length > 0 ? ships : [...TRADING_SHIPS];
+}
+
 export function getShipByName(name: string): TradingShip | undefined {
-  return SHIPS_BY_NAME.get(name);
+  const list = getTradingShipsList();
+  return list.find((s) => s.name === name);
 }
 
 export function getQuantumSpeedGmPerSec(speedClass: QuantumSpeedClass = "standard"): number {
@@ -65,14 +121,6 @@ const SHIPS_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 let mergedShipsCache: { ships: TradingShip[]; fetchedAt: number } | null = null;
 let mergeInflight: Promise<TradingShip[]> | null = null;
 
-function mergeUexScuIntoStatic(uexNames: Map<string, number>): TradingShip[] {
-  return TRADING_SHIPS.map((ship) => {
-    const slug = ship.uexSlug ?? ship.name.toLowerCase().replace(/\s+/g, "-");
-    const uexScu = uexNames.get(slug) ?? uexNames.get(ship.name.toLowerCase());
-    return uexScu != null && uexScu > 0 ? { ...ship, scu: Math.round(uexScu) } : ship;
-  });
-}
-
 export async function fetchCargoShipsFromUex(
   fetchVehicles: () => Promise<{ name: string; slug?: string; scu: number }[]>,
 ): Promise<TradingShip[]> {
@@ -84,14 +132,7 @@ export async function fetchCargoShipsFromUex(
   mergeInflight = (async () => {
     try {
       const vehicles = await fetchVehicles();
-      const uexNames = new Map<string, number>();
-      for (const v of vehicles) {
-        const scu = Math.round(v.scu);
-        if (scu <= 0) continue;
-        if (v.slug) uexNames.set(v.slug, scu);
-        uexNames.set(v.name.toLowerCase(), scu);
-      }
-      const ships = mergeUexScuIntoStatic(uexNames);
+      const ships = buildFullShipListFromUex(vehicles);
       mergedShipsCache = { ships, fetchedAt: Date.now() };
       return ships;
     } catch {
@@ -106,4 +147,9 @@ export async function fetchCargoShipsFromUex(
 
 export function getTradingShipsList(): TradingShip[] {
   return mergedShipsCache?.ships ?? TRADING_SHIPS;
+}
+
+export function clearTradingShipsCache(): void {
+  mergedShipsCache = null;
+  mergeInflight = null;
 }
